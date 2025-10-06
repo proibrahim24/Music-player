@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Qivren — Mobile Music</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg-dark:#030e14; --btn-primary:#ef265d; --text-accent:#25a6c3; --glass: rgba(255,255,255,0.04);} 
+    html,body{height:100%;}
+    body{font-family:'Quicksand',sans-serif;background: radial-gradient(1200px 600px at 10% 10%, rgba(37,166,195,0.06), transparent), var(--bg-dark);-webkit-font-smoothing:antialiased;color:#cfeff6;margin:0;padding:0;}
+    .app-shell{max-width:420px;width:100%;height:95vh;margin:1vh auto;border-radius:28px;overflow:hidden;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03);}
+    .topbar{backdrop-filter: blur(6px);-webkit-backdrop-filter: blur(6px);background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));padding:12px 14px;display:flex;align-items:center;gap:10px}
+    .profile-btn{display:flex;align-items:center;gap:8px;cursor:pointer}
+    .profile-avatar{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--text-accent),var(--btn-primary));display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--bg-dark);box-shadow:0 6px 18px rgba(14,20,24,0.6)}
+    .app-title{font-weight:800;font-size:18px;color:var(--text-accent);letter-spacing:0.6px}
+    .art-card{padding:18px;display:flex;flex-direction:column;align-items:center;gap:12px}
+    .artwork{width:220px;height:220px;border-radius:24px;box-shadow: inset 0 -10px 30px rgba(0,0,0,0.6), 0 12px 40px rgba(0,0,0,0.6);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.15));display:flex;align-items:center;justify-content:center}
+    .track-title{font-weight:700;font-size:20px;text-align:center}
+    .track-sub{font-size:13px;color:rgba(207,239,246,0.7)}
+    .controls{display:flex;gap:12px;align-items:center;justify-content:center;padding:8px}
+    .btn-circle{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(2,8,12,0.6);cursor:pointer}
+    .sheet-backdrop{position:fixed;inset:0;background:rgba(2,8,12,0.45);backdrop-filter:blur(6px);display:none;z-index:60}
+    .sheet{position:fixed;left:50%;transform:translateX(-50%);bottom:-100%;width:100%;max-width:420px;height:60vh;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));border-top-left-radius:18px;border-top-right-radius:18px;padding:18px;box-shadow:0 -20px 60px rgba(0,0,0,0.6);z-index:70;transition:all 380ms cubic-bezier(.2,.9,.3,1)}
+    .sheet.show{bottom:0}
+    .sheet-handle{width:48px;height:6px;background:rgba(255,255,255,0.08);border-radius:999px;margin:0 auto 8px}
+    .sidebar-backdrop{position:fixed;inset:0;background:transparent;display:none;z-index:50}
+    .sidebar{position:fixed;left:0;top:0;bottom:0;width:78%;max-width:320px;background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));backdrop-filter: blur(8px);padding:20px;transform:translateX(-110%);transition:transform .33s ease;z-index:55}
+    .sidebar.show{transform:translateX(0)}
+    .sidebar .item{padding:14px 12px;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer}
+    .sidebar .item:hover{background:rgba(255,255,255,0.02)}
+    .page{position:absolute;inset:0;top:74px;padding:16px;overflow:auto}
+    .hidden{display:none}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .file-card{background:var(--glass);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:8px}
+    .muted{color:rgba(207,239,246,0.6)}
+    .added-list{margin-top:12px;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);font-weight:600}
+    @media (max-width:420px){.artwork{width:180px;height:180px;border-radius:20px}.btn-circle{width:56px;height:56px}}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="topbar">
+      <div id="profileBtn" class="profile-btn">
+        <div class="profile-avatar" id="avatar">Mi</div>
+        <div class="app-title">Qivren</div>
+      </div>
+
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <button id="playlistOpenBtn" title="Open Playlists" class="p-3 rounded-lg shadow-md" style="background:var(--btn-primary);color:var(--bg-dark);font-weight:600">Playlists</button>
+        <button id="accountBtn" title="Account" class="p-3 rounded-lg shadow-md" style="background:transparent;border:1px solid rgba(255,255,255,0.04);">Account</button>
+      </div>
+    </div>
+
+    <div id="homePage" class="page">
+      <div class="art-card">
+        <div id="artwork" class="artwork">
+          <svg width="74" height="74" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="22" height="22" rx="6" fill="white" fill-opacity="0.06"></rect><path d="M7 8h10v8H7z" fill="white" fill-opacity="0.06"></path></svg>
+        </div>
+        <div class="track-title" id="trackTitle">No File Loaded</div>
+        <div class="track-sub" id="trackMeta">Tap + to import a song or open a playlist</div>
+      </div>
+
+      <div style="padding:0 16px">
+        <div id="progressBarContainer" style="height:8px;background:rgba(37,166,195,0.12);border-radius:999px;overflow:hidden;cursor:pointer">
+          <div id="progressBar" style="width:0;height:100%;background:var(--btn-primary)"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding-top:8px;font-size:13px;color:rgba(207,239,246,0.7)">
+          <div id="currentTime">0:00</div>
+          <div id="duration">0:00</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div id="stopBtn" class="btn-circle" style="background:var(--text-accent);color:var(--bg-dark);">■</div>
+        <div id="playPauseBtn" class="btn-circle" style="background:var(--btn-primary);color:var(--bg-dark);font-size:20px;">▶</div>
+        <div id="loopBtn" class="btn-circle" style="background:transparent;border:2px solid rgba(37,166,195,0.18);color:var(--text-accent);">⟲</div>
+        <div id="addToPlaylistBtn" class="btn-circle" title="Add to playlist" style="background:transparent;border:2px solid rgba(255,255,255,0.04);">+</div>
+      </div>
+
+      <div style="display:flex;gap:12px;padding:18px;justify-content:center;flex-wrap:wrap">
+        <label for="fileInput" class="p-3 rounded-xl font-semibold transition-shadow cursor-pointer" style="background:var(--text-accent);color:var(--bg-dark);min-width:120px;text-align:center">+ Import File</label>
+        <button id="openPlaylistsBtn" class="p-3 rounded-xl font-semibold" style="background:transparent;border:1px solid rgba(255,255,255,0.04);min-width:120px">Playlists</button>
+      </div>
+
+      <div style="padding:12px">
+        <h3 style="font-weight:700;color:var(--text-accent)">Recently Imported</h3>
+        <div id="playlistPreview" style="margin-top:10px;display:grid;grid-template-columns:repeat(1,1fr);gap:12px"></div>
+        <div id="addedToArea" class="added-list muted" style="display:none">Added to: <span id="addedListNames"></span></div>
+      </div>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:0;padding:12px;background:linear-gradient(0deg, rgba(0,0,0,0.18), transparent)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div id="miniTitle" style="font-weight:800">Qivren</div>
+          <div class="muted" style="font-size:13px">• Mobile</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="playlistToggle" class="p-2 rounded-lg">Playlists</button>
+          <button id="openAccountBtn" class="p-2 rounded-lg">Account</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sheetBackdrop" class="sheet-backdrop"></div>
+    <div id="playlistsSheet" class="sheet" aria-hidden="true">
+      <div class="sheet-handle"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h3 style="font-weight:800">Playlists</h3>
+        <div style="display:flex;gap:8px">
+          <button id="newPlaylistBtn" class="p-2 rounded-lg" style="background:var(--text-accent);color:var(--bg-dark)">New</button>
+          <button id="closeSheet" class="p-2 rounded-lg">Close</button>
+        </div>
+      </div>
+
+      <div id="newPlaylistForm" style="display:none;margin-bottom:8px">
+        <input id="newPlaylistName" placeholder="Playlist name" class="p-3 rounded-lg bg-transparent border border-white/6" />
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="createPlaylistConfirm" class="p-2 rounded-lg" style="background:var(--text-accent);color:var(--bg-dark)">Create</button>
+          <button id="cancelCreate" class="p-2 rounded-lg">Cancel</button>
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <div id="playlistsList" style="display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto;padding-right:6px"></div>
+      </div>
+    </div>
+
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+    <aside id="sidebar" class="sidebar" aria-hidden="true">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+        <div class="profile-avatar" id="sidebarAvatar">Mi</div>
+        <div>
+          <div style="font-weight:800;color:var(--text-accent)">Qivren</div>
+          <div class="muted" style="font-size:13px">You • Offline</div>
+        </div>
+      </div>
+
+      <div id="musicPlayerBtn" class="item"><svg width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="M5 3v18l15-9z"/></svg><div>Music Player</div></div>
+
+      <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.03);padding-top:12px">
+        <div class="item" id="importLocalBtn">Import From Device</div>
+        <div class="item" id="settingsBtn">Settings</div>
+      </div>
+    </aside>
+
+    <input id="fileInput" type="file" accept="audio/*" style="display:none" />
+    <audio id="audioPlayer" preload="metadata"></audio>
+
+    <div id="accountModal" class="sheet" style="height:auto;max-height:80vh;padding:18px;">
+      <div class="sheet-handle"></div>
+      <h3 style="font-weight:800">Account</h3>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
+        <input id="accName" placeholder="Username" class="p-3 rounded-lg bg-transparent border border-white/6" />
+        <input id="accPass" placeholder="Password" type="password" class="p-3 rounded-lg bg-transparent border border-white/6" />
+        <div style="display:flex;gap:8px">
+          <button id="createAccBtn" class="p-3 rounded-lg" style="background:var(--text-accent);color:var(--bg-dark)">Create</button>
+          <button id="loginAccBtn" class="p-3 rounded-lg" style="background:var(--btn-primary);color:var(--bg-dark)">Login</button>
+        </div>
+        <div class="muted" style="font-size:13px">Account is local-only for now (stored in your device). You can optionally register device biometric after creating account.</div>
+        <div style="display:flex;gap:8px;margin-top:8px"><button id="regBiometric" class="p-2 rounded-lg">Register Biometric</button><button id="authBiometric" class="p-2 rounded-lg">Use Biometric</button></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ---- State and helpers ----
+    const sheet = document.getElementById('playlistsSheet');
+    const sheetBackdrop = document.getElementById('sheetBackdrop');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+    const profileBtn = document.getElementById('profileBtn');
+    const playlistsList = document.getElementById('playlistsList');
+    const newPlaylistBtn = document.getElementById('newPlaylistBtn');
+    const newPlaylistForm = document.getElementById('newPlaylistForm');
+    const createPlaylistConfirm = document.getElementById('createPlaylistConfirm');
+    const cancelCreate = document.getElementById('cancelCreate');
+    const newPlaylistName = document.getElementById('newPlaylistName');
+    const addToPlaylistBtn = document.getElementById('addToPlaylistBtn');
+    const addedToArea = document.getElementById('addedToArea');
+    const addedListNames = document.getElementById('addedListNames');
+    
+    // Player elements
+    const fileInput = document.getElementById('fileInput');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const loopBtn = document.getElementById('loopBtn');
+    const progressBar = document.getElementById('progressBar');
+    const progressBarContainer = document.getElementById('progressBarContainer');
+
+    // Player State
+    let isPlaying = false; 
+    let isLoop = false; 
+    window.currentFile = null; 
+    let currentObjectUrl = null; 
+
+    // persistent playlists (localStorage)
+    let playlists = JSON.parse(localStorage.getItem('qiv_playlists') || '[]');
+
+    // IndexedDB extended stores (for files)
+    const DB_NAME = 'QivrenDB';
+    const DB_VERSION = 3; 
+    let db;
+    
+    // Utility to promisify DB operations
+    const promisifyDB = (req) => new Promise((resolve, reject) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+
+    // Opens IndexedDB and creates 'tracks' store if needed
+    async function openDB(){
+      return new Promise((resolve,reject)=>{
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e)=>{
+          const d = e.target.result;
+          if(!d.objectStoreNames.contains('tracks')) d.createObjectStore('tracks',{keyPath:'id',autoIncrement:true});
+        }
+        req.onsuccess = ()=>{ db = req.result; resolve(db); }
+        req.onerror = (ev)=> reject(ev);
+      });
+    }
+
+    // Load main playlist preview
+    openDB().then(()=>{ loadPlaylistPreview(); }).catch(e=>console.error('IndexedDB failed to open:',e));
+
+    // ---- Playlists sheet behavior ----
+    function showSheet(mode='list'){ sheetBackdrop.style.display='block'; sheet.classList.add('show'); sheetBackdrop.style.opacity='1'; renderPlaylists(mode); }
+    function hideSheet(){ sheetBackdrop.style.display='none'; sheet.classList.remove('show'); newPlaylistForm.style.display='none'; newPlaylistName.value=''; }
+    document.getElementById('playlistOpenBtn').addEventListener('click', ()=>showSheet('list'));
+    document.getElementById('playlistToggle').addEventListener('click', ()=>showSheet('list'));
+    document.getElementById('openPlaylistsBtn').addEventListener('click', ()=>showSheet('list'));
+    document.getElementById('closeSheet').addEventListener('click', hideSheet);
+    sheetBackdrop.addEventListener('click', hideSheet);
+
+    // New playlist button toggles inline form
+    newPlaylistBtn.addEventListener('click', ()=>{ newPlaylistForm.style.display = newPlaylistForm.style.display === 'none' ? 'block' : 'none'; newPlaylistName.focus(); });
+    cancelCreate.addEventListener('click', ()=>{ newPlaylistForm.style.display='none'; newPlaylistName.value=''; });
+
+    // Create playlist action (functional)
+    createPlaylistConfirm.addEventListener('click', ()=>{
+      const name = newPlaylistName.value.trim();
+      if(!name) return alert('Enter a playlist name');
+      const p = {id:Date.now(),name,tracks:[]};
+      playlists.push(p);
+      localStorage.setItem('qiv_playlists', JSON.stringify(playlists));
+      newPlaylistForm.style.display='none'; newPlaylistName.value=''; renderPlaylists('list');
+    });
+
+    function renderPlaylists(mode='list'){
+      playlistsList.innerHTML='';
+      if(playlists.length===0){ playlistsList.innerHTML='<div class="muted">No playlists yet — create one.</div>'; return; }
+      playlists.forEach(pl=>{
+        const el = document.createElement('div');
+        el.style.display='flex'; el.style.justifyContent='space-between'; el.style.alignItems='center'; el.style.padding='10px'; el.style.borderRadius='10px'; el.style.background='rgba(255,255,255,0.02)'; el.style.cursor='pointer';
+        if(mode==='add'){
+          el.innerHTML = `<div style="font-weight:700">${pl.name}</div><div style='display:flex;gap:8px'><button data-id='${pl.id}' class='addHere p-2 rounded-md bg-white/10'>Add Here</button></div>`;
+        } else {
+          el.innerHTML = `<div style="font-weight:700">${pl.name}</div><div style='display:flex;gap:8px'><button data-id='${pl.id}' class='openPl p-2 rounded-md bg-white/10'>Open</button></div>`;
+          el.querySelector('div').onclick = ()=> openPlaylist(pl.id);
+        }
+        playlistsList.appendChild(el);
+      });
+      if(mode==='add'){
+        Array.from(document.querySelectorAll('.addHere')).forEach(b=>b.onclick=(e)=>{ const id = +e.target.dataset.id; addCurrentToPlaylist(id); });
+      } else {
+        Array.from(document.querySelectorAll('.openPl')).forEach(b=>b.onclick=(e)=>{ const id = +e.target.dataset.id; openPlaylist(id); });
+      }
+    }
+
+    // Add to playlist flow
+    addToPlaylistBtn.addEventListener('click', ()=>{
+      if(!window.currentFile) return alert('No file loaded. Import a file first.');
+      showSheet('add');
+    });
+
+    function addCurrentToPlaylist(plId){
+      const pl = playlists.find(p=>p.id===plId);
+      if(!pl) return alert('Playlist not found');
+      const trackName = window.currentFile.name;
+      if(pl.tracks.some(t=>t.name === trackName)) return alert(`${trackName} is already in this playlist.`);
+      // Only store track name and a local ID
+      pl.tracks.push({id:Date.now(),name:trackName});
+      localStorage.setItem('qiv_playlists', JSON.stringify(playlists));
+      updateAddedArea();
+      alert(`Added ${trackName} to ${pl.name}`);
+      renderPlaylists('add');
+    }
+
+    // Open playlist (shows tracks within sheet)
+    function openPlaylist(id){
+      const pl = playlists.find(p=>p.id===id);
+      if(!pl) return alert('Playlist missing');
+      playlistsList.innerHTML = `<div style='display:flex;justify-content:space-between;align-items:center'><strong>${pl.name}</strong><div style="display:flex;gap:8px"><button id='backToList' class='p-2 rounded-md bg-white/10'>Back</button><button id='addCurrent' class='p-2 rounded-md bg-white/10'>Add Current</button></div></div><div id='plTracks' style='margin-top:10px'></div>`;
+      document.getElementById('backToList').onclick = ()=> renderPlaylists('list');
+      document.getElementById('addCurrent').onclick = ()=>{
+        if(!window.currentFile) return alert('No file currently loaded to add');
+        addCurrentToPlaylist(id); 
+      };
+      const plTracks = document.getElementById('plTracks');
+      if(pl.tracks.length===0) plTracks.innerHTML = '<div class="muted">No tracks added. Use the Import button to load a track then Add Current.</div>';
+      else pl.tracks.forEach(t=>{
+        const d = document.createElement('div'); 
+        d.style.padding='8px'; d.style.borderRadius='8px'; d.style.display='flex'; d.style.justifyContent='space-between'; d.style.alignItems='center'; d.style.background='rgba(255,255,255,0.02)'; d.style.cursor='pointer';
+        // Changed innerHTML to include a clickable element for the track name
+        d.innerHTML = `<div class='track-name-display' data-name='${t.name}' style='flex-grow:1'>${t.name}</div><div><button data-tid='${t.id}' class='rmTrack p-2 rounded-md bg-white/10'>Remove</button></div>`; 
+        plTracks.appendChild(d);
+      });
+      // NEW LOGIC: Handle click on track name to play it
+      Array.from(document.querySelectorAll('#plTracks .track-name-display')).forEach(d=>{
+          d.onclick = (e)=>{
+              // Use currentTarget to ensure we get the right element if clicking a child (like text)
+              const trackName = e.currentTarget.dataset.name; 
+              playTrackByName(trackName);
+              hideSheet(); // Close the playlist sheet after starting playback
+          };
+      });
+      // End NEW LOGIC
+      Array.from(document.querySelectorAll('.rmTrack')).forEach(b=>b.onclick=(e)=>{ const tid=+e.target.dataset.tid; const idx=pl.tracks.findIndex(x=>x.id===tid); if(idx>-1){pl.tracks.splice(idx,1); localStorage.setItem('qiv_playlists', JSON.stringify(playlists)); openPlaylist(id); updateAddedArea();} });
+    }
+
+    // ---- Sidebar behavior ----
+    function openSidebar(){ sidebarBackdrop.style.display='block'; sidebar.classList.add('show'); sidebarBackdrop.style.background='rgba(0,0,0,0.35)'; }
+    function closeSidebar(){ sidebarBackdrop.style.display='none'; sidebar.classList.remove('show'); }
+    profileBtn.addEventListener('click', openSidebar);
+    sidebarBackdrop.addEventListener('click', closeSidebar);
+
+    // Sidebar buttons (only music player remains)
+    document.getElementById('musicPlayerBtn').addEventListener('click', closeSidebar);
+    document.getElementById('importLocalBtn').addEventListener('click', ()=>{ closeSidebar(); fileInput.click(); });
+
+
+    // ---- IndexedDB store helper ----
+    async function deleteFromStore(id){ 
+        if(!db) return; 
+        const tr=db.transaction(['tracks'],'readwrite'); 
+        await promisifyDB(tr.objectStore('tracks').delete(id));
+        loadPlaylistPreview(); 
+    }
+
+    async function openFromStore(item){ 
+        if(!item) return; 
+        
+        if(item.type && item.type.startsWith('audio')){ 
+            // Clear previous URL before creating new one to prevent memory leak
+            if(currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+            
+            // Create a temporary URL for the Blob data and set it as the audio source
+            currentObjectUrl = URL.createObjectURL(item.blob); 
+            audioPlayer.src = currentObjectUrl; 
+            
+            document.getElementById('trackTitle').innerText = item.name; 
+            // Update the global currentFile to match the one loaded from the store
+            window.currentFile = {name:item.name, type:item.type}; 
+            document.getElementById('trackMeta').innerText = 'Ready to play';
+            updateAddedArea(); 
+
+            try{
+                // Must load the new source before playing
+                audioPlayer.load();
+                await audioPlayer.play();
+                isPlaying = true;
+                playPauseBtn.innerText = '❚❚';
+            } catch(error) {
+                console.error("Autoplay failed:", error);
+                isPlaying = false;
+                playPauseBtn.innerText = '▶';
+            }
+        } else { 
+            alert('Preview not supported for this type.'); 
+        }
+    }
+
+    // CORE FIX: Find and play track by name from IndexedDB
+    async function playTrackByName(trackName) {
+        if (!db) return;
+        const tr = db.transaction(['tracks'], 'readonly');
+        
+        // Retrieve all tracks and find the one that matches the name
+        const allTracks = await promisifyDB(tr.objectStore('tracks').getAll());
+        // Find the track item by name. Tracks imported via fileInput are guaranteed to be in IndexedDB.
+        const item = allTracks.find(t => t.name === trackName);
+
+        if (!item) return alert(`Track file "${trackName}" not found in local storage. It may have been deleted from "Recently Imported".`);
+
+        // Use the existing logic to load and play the track by passing the item object
+        await openFromStore(item);
+    }
+    // END CORE FIX
+
+
+    // ---- File import & player controls ----
+    fileInput.addEventListener('change', async (e)=>{ 
+      const f = e.target.files[0]; 
+      if(!f || !f.type.startsWith('audio')) return alert('Please select an audio file.');
+
+      // 1. Play immediately (This logic is for the first time import)
+      if(currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+      currentObjectUrl = URL.createObjectURL(f);
+      audioPlayer.src = currentObjectUrl;
+      document.getElementById('trackTitle').innerText = f.name; 
+      window.currentFile = f; 
+      updateAddedArea(); 
+
+      try{
+          audioPlayer.load();
+          await audioPlayer.play();
+          isPlaying = true;
+          playPauseBtn.innerText = '❚❚';
+      } catch(error) {
+          console.error("Autoplay failed:", error);
+          isPlaying = false;
+          playPauseBtn.innerText = '▶';
+      }
+      
+      // 2. Save to 'tracks' store in the background for permanent storage
+      const r=new FileReader(); 
+      r.onload= async ()=>{ 
+        const tr=db.transaction(['tracks'],'readwrite'); 
+        // IMPORTANT: We use ArrayBuffer to store the raw binary data
+        const newItem = {name:f.name, type:f.type, blob:new Blob([r.result],{type:f.type}), ts:Date.now()};
+        
+        // Prevent duplicate entries for the same file name
+        const existingTracks = await promisifyDB(tr.objectStore('tracks').getAll());
+        if (!existingTracks.some(t => t.name === f.name)) {
+            await promisifyDB(tr.objectStore('tracks').add(newItem));
+        }
+        
+        loadPlaylistPreview(); 
+      }; 
+      r.readAsArrayBuffer(f);
+      
+      fileInput.value = null; 
+    });
+
+
+    // --- Player Controls ---
+    playPauseBtn.addEventListener('click', ()=>{ 
+        if(!audioPlayer.src) return alert('No track loaded. Import one or select from a playlist.'); 
+        if(isPlaying){ 
+            audioPlayer.pause(); 
+            isPlaying=false; 
+            playPauseBtn.innerText='▶'; 
+        } else { 
+            audioPlayer.play().then(()=>{
+                isPlaying=true; 
+                playPauseBtn.innerText='❚❚'; 
+            }).catch(e => {
+                console.error("Playback error:", e);
+                alert("Could not play the audio file. It might be corrupted or an autoplay block is active.");
+            });
+        } 
+    });
+
+    stopBtn.addEventListener('click', ()=>{ 
+        audioPlayer.pause(); 
+        audioPlayer.currentTime=0; 
+        isPlaying=false; 
+        playPauseBtn.innerText='▶'; 
+    });
+
+    loopBtn.addEventListener('click', ()=>{ 
+        isLoop=!isLoop; 
+        audioPlayer.loop=isLoop; 
+        loopBtn.style.borderColor = isLoop? 'var(--btn-primary)':'rgba(37,166,195,0.18)'; 
+    });
+
+    // --- Time and Progress Bar ---
+    audioPlayer.addEventListener('loadedmetadata', () => {
+        document.getElementById('duration').innerText = formatTime(audioPlayer.duration);
+    });
+    
+    audioPlayer.addEventListener('timeupdate', ()=>{ 
+        const c = audioPlayer.currentTime; 
+        const d = audioPlayer.duration || 0; 
+        document.getElementById('currentTime').innerText = formatTime(c); 
+        // Duration is set in loadedmetadata, no need to set here unless it's 0
+        if(d>0) progressBar.style.width = (c/d*100)+'%'; 
+    });
+    
+    // Reset player display on end
+    audioPlayer.addEventListener('ended', ()=>{
+        isPlaying = false;
+        playPauseBtn.innerText = '▶';
+        progressBar.style.width = '100%';
+    });
+
+    function formatTime(s){ 
+        if(!isFinite(s)) return '0:00'; 
+        const m = Math.floor(s/60); 
+        const sec = Math.floor(s%60); 
+        return `${m}:${sec<10?'0':''}${sec}`; 
+    }
+
+    // Seek functionality (click on progress bar)
+    progressBarContainer.addEventListener('click', (e)=>{
+        if(!audioPlayer.src || !isFinite(audioPlayer.duration) || audioPlayer.duration === 0) return;
+        const rect = progressBarContainer.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const newTime = (clickX / rect.width) * audioPlayer.duration;
+        audioPlayer.currentTime = newTime;
+    });
+
+    // load playlist preview from DB (Recently Imported)
+    async function loadPlaylistPreview(){ 
+      if(!db) return; 
+      const tr=db.transaction(['tracks'],'readonly'); 
+      const items = await promisifyDB(tr.objectStore('tracks').getAll());
+      
+      const preview = document.getElementById('playlistPreview'); 
+      preview.innerHTML=''; 
+      
+      // Sort by timestamp (ts) descending (most recent first)
+      items.slice().sort((a,b) => b.ts - a.ts).slice(0,6).forEach(it=>{ 
+        const card = document.createElement('div'); 
+        card.style.display='flex'; card.style.justifyContent='space-between'; card.style.alignItems='center'; card.style.padding='10px'; card.style.borderRadius='10px'; card.style.background='rgba(255,255,255,0.02)'; 
+        card.innerHTML = `<div style='font-weight:700'>${it.name}</div><div style='display:flex;gap:8px'><button data-id='${it.id}' class='playIt p-2 rounded-md bg-white/10'>▶</button><button data-id='${it.id}' class='delIt p-2 rounded-md bg-white/10'>✕</button></div>`; 
+        preview.appendChild(card); 
+      }); 
+      
+      // Pass the entire item to openFromStore for playback
+      Array.from(document.querySelectorAll('#playlistPreview .playIt')).forEach(b=>b.onclick=async (e)=>{ 
+        const id = +e.target.dataset.id;
+        const tr=db.transaction(['tracks'],'readonly');
+        const item = await promisifyDB(tr.objectStore('tracks').get(id));
+        openFromStore(item); 
+      }); 
+      Array.from(document.querySelectorAll('#playlistPreview .delIt')).forEach(b=>b.onclick=(e)=>{ deleteFromStore(+e.target.dataset.id); }); 
+      
+      updateAddedArea(); 
+    }
+
+    // ---- Account modal & biometric helpers ----
+    const accountModal = document.getElementById('accountModal');
+    const createAccBtn = document.getElementById('createAccBtn');
+    const loginAccBtn = document.getElementById('loginAccBtn');
+    const regBiometric = document.getElementById('regBiometric');
+    const authBiometric = document.getElementById('authBiometric');
+
+    function showAccountModal(newOpen=false){ accountModal.style.bottom='-100%'; accountModal.style.display='block'; setTimeout(()=>{ accountModal.classList.add('show'); },50); }
+    function hideAccountModal(){ accountModal.classList.remove('show'); setTimeout(()=>accountModal.style.display='none',300); }
+    document.getElementById('accountBtn').addEventListener('click', ()=>showAccountModal());
+    document.getElementById('openAccountBtn').addEventListener('click', ()=>showAccountModal());
+
+    createAccBtn.addEventListener('click', ()=>{ const name = document.getElementById('accName').value.trim(); const pass = document.getElementById('accPass').value; if(!name || !pass) return alert('Provide username & password'); localStorage.setItem('qiv_account', JSON.stringify({username:name,password:pass})); alert('Account created locally. You can register biometric now.'); hideAccountModal(); });
+    loginAccBtn.addEventListener('click', ()=>{ const name = document.getElementById('accName').value.trim(); const pass = document.getElementById('accPass').value; const acct = JSON.parse(localStorage.getItem('qiv_account')||'null'); if(!acct) return alert('No account. Create one first.'); if(acct.username===name && acct.password===pass){ alert('Logged in locally'); hideAccountModal(); } else alert('Incorrect'); });
+
+    // Biometric (WebAuthn) - lightweight local approach: store credential id in localStorage. 
+    async function bufferToBase64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+    
+    regBiometric.addEventListener('click', async ()=>{
+      if(!window.PublicKeyCredential) return alert('WebAuthn not supported in this browser');
+      const acct = JSON.parse(localStorage.getItem('qiv_account')||'null'); if(!acct) return alert('Create account first');
+      const challenge = window.crypto.getRandomValues(new Uint8Array(32));
+      const publicKey = { challenge, rp: {name: 'Qivren'}, user: {id: new Uint8Array(16), name: acct.username, displayName: acct.username}, pubKeyCredParams:[{alg:-7,type:'public-key'}], authenticatorSelection:{userVerification:'preferred'}, timeout:60000 };
+      try{ const cred = await navigator.credentials.create({publicKey}); const id = await bufferToBase64(cred.rawId); localStorage.setItem('qiv_biometric_id', id); alert('Biometric registered locally'); }catch(e){ console.error(e); alert('Biometric registration failed'); }
+    });
+
+    authBiometric.addEventListener('click', async ()=>{ const ok = await tryBiometricAuth(); if(ok) alert('Biometric auth success'); else alert('Biometric auth failed'); });
+
+    async function tryBiometricAuth(){ try{ const idb = localStorage.getItem('qiv_biometric_id'); if(!idb) return false; const allow = [{id: new Uint8Array(atob(idb).split('').map(c=>c.charCodeAt(0))), type: 'public-key'}]; const assertion = await navigator.credentials.get({publicKey:{challenge:window.crypto.getRandomValues(new Uint8Array(32)), allowCredentials:allow, timeout:60000}}); return !!assertion; }catch(e){ console.error(e); return false; } }
+
+    // ---- Update added-to area on main page ----
+    function updateAddedArea(){ 
+        if(!window.currentFile) { 
+            addedToArea.style.display='none'; 
+            return; 
+        } 
+        const name = window.currentFile.name; 
+        const containing = playlists.filter(p=>p.tracks.some(t=>t.name===name)).map(p=>p.name); 
+        if(containing.length===0){ 
+            addedToArea.style.display='none'; 
+        } else { 
+            addedToArea.style.display='block'; 
+            addedListNames.innerText = containing.join(', '); 
+        } 
+    }
+
+    // ---- Misc helpers & PWA service worker setup ----
+    if('serviceWorker' in navigator){
+      const swCode = `self.addEventListener('install', e=>{ self.skipWaiting(); }); self.addEventListener('activate', e=>{ self.clients.claim(); }); self.addEventListener('fetch', e=>{ /* pass-through fetch */ });`;
+      try{ const swBlob = new Blob([swCode],{type:'text/javascript'}); const swUrl = URL.createObjectURL(swBlob); navigator.serviceWorker.register(swUrl).catch(()=>{}); }catch(e){/*ignore*/}
+    }
+
+  </script>
+</body>
+</html>
